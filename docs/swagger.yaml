@@ -1,0 +1,131 @@
+basePath: /
+definitions:
+  main.AuthUserRequest:
+    properties:
+      password:
+        example: securePassword123
+        type: string
+      username:
+        example: johndoe
+        type: string
+    type: object
+  main.StatusResponse:
+    properties:
+      status:
+        type: string
+    type: object
+  main.TaskResponse:
+    properties:
+      task_id:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API for managing async computational tasks
+  title: Task Service API
+  version: "1.0"
+paths:
+  /login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: User data
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/main.AuthUserRequest'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: User successfully logined
+          schema:
+            type: string
+        "401":
+          description: Invalid username or password
+          schema:
+            type: string
+      summary: Login user
+      tags:
+      - auth
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Accepts a JSON object with username and password to create a new
+        user
+      parameters:
+      - description: User data
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/main.AuthUserRequest'
+      produces:
+      - text/plain
+      responses:
+        "201":
+          description: User successfully registered
+          schema:
+            type: string
+        "400":
+          description: Invalid input or missing fields
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Register user
+      tags:
+      - auth
+  /result/{taskID}:
+    get:
+      parameters:
+      - description: Task ID
+        in: path
+        name: taskID
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: result
+          schema:
+            type: string
+        "404":
+          description: not found
+          schema:
+            type: string
+      summary: Get task result
+  /status/{taskID}:
+    get:
+      parameters:
+      - description: Task ID
+        in: path
+        name: taskID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.StatusResponse'
+      summary: Get task status
+  /task:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.TaskResponse'
+      summary: Submit a new task
+swagger: "2.0"
