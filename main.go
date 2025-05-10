@@ -18,9 +18,9 @@ func main() {
 	storage := NewInMemoryStorage()
 
 	r := chi.NewRouter()
-	r.Post("/task", CreateTaskHandler(storage))
-	r.Get("/status/{taskID}", GetStatusHandler(storage))
-	r.Get("/result/{taskID}", GetResultHandler(storage))
+	r.With(authMiddleware(storage)).Post("/task", CreateTaskHandler(storage))
+	r.With(authMiddleware(storage)).Get("/status/{taskID}", GetStatusHandler(storage))
+	r.With(authMiddleware(storage)).Get("/result/{taskID}", GetResultHandler(storage))
 
 	r.Post("/register", RegisterUserHandler(storage))
 	r.Post("/login", LoginUserHandler(storage))

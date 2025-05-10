@@ -29,6 +29,7 @@ type Storage interface {
 	RegisterUser(id string, username string, password string) error
 	GetUserByLogin(login string) (User, bool)
 	SetSession(session Session)
+	GetSession(SessionId string) (Session, bool)
 }
 
 type InMemoryStorage struct {
@@ -86,4 +87,11 @@ func (s *InMemoryStorage) SetSession(session Session) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.sessions[session.SessionId] = session
+}
+
+func (s *InMemoryStorage) GetSession(SessionId string) (Session, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	session, exists := s.sessions[SessionId]
+	return session, exists
 }

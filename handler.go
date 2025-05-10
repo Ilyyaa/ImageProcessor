@@ -20,7 +20,9 @@ type StatusResponse struct {
 
 // @Summary Submit a new task
 // @Produce json
+// @Param Authorization header string true "Auth token"
 // @Success 200 {object} TaskResponse
+// @Failure 401 {string} string "Invalid token"
 // @Router /task [post]
 func CreateTaskHandler(store Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +41,9 @@ func CreateTaskHandler(store Storage) http.HandlerFunc {
 // @Summary Get task status
 // @Produce json
 // @Param taskID path string true "Task ID"
+// @Param Authorization header string true "Auth token"
 // @Success 200 {object} StatusResponse
+// @Failure 401 {string} string "Invalid token"
 // @Router /status/{taskID} [get]
 func GetStatusHandler(store Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -56,8 +60,10 @@ func GetStatusHandler(store Storage) http.HandlerFunc {
 // @Summary Get task result
 // @Produce plain
 // @Param taskID path string true "Task ID"
+// @Param Authorization header string true "Auth token"
 // @Success 200 {string} string "result"
 // @Failure 404 {string} string "not found"
+// @Failure 401 {string} string "Invalid token"
 // @Router /result/{taskID} [get]
 func GetResultHandler(store Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -132,7 +138,7 @@ func LoginUserHandler(store Storage) http.HandlerFunc {
 		User, exists := store.GetUserByLogin(data.Username)
 
 		if !exists || bcrypt.CompareHashAndPassword([]byte(User.hash), []byte(data.Password)) != nil {
-			http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+			http.Error(w, "Invalid username or password", http.StatusBadRequest)
 			return
 		}
 
@@ -140,7 +146,29 @@ func LoginUserHandler(store Storage) http.HandlerFunc {
 			SessionId: SessionId}
 		store.SetSession(Session)
 
-		w.Header().Add("Authorization", "Bearer "+SessionId)
+		w.Header().Add("Authorization", SessionId)
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func authMiddleware(store Storage) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token := r.Header.Get("Authorization")
+			if token == "" {
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				return
+			}
+			if len(token) <= len("Bearer ") {
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				return
+			}
+			_, exists := store.GetSession(token[len("Bearer "):])
+			if !exists {
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
 	}
 }

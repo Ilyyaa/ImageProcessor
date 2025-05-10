@@ -90,11 +90,20 @@ paths:
         name: taskID
         required: true
         type: string
+      - description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       produces:
       - text/plain
       responses:
         "200":
           description: result
+          schema:
+            type: string
+        "401":
+          description: Invalid token
           schema:
             type: string
         "404":
@@ -110,6 +119,11 @@ paths:
         name: taskID
         required: true
         type: string
+      - description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -117,9 +131,19 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/main.StatusResponse'
+        "401":
+          description: Invalid token
+          schema:
+            type: string
       summary: Get task status
   /task:
     post:
+      parameters:
+      - description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -127,5 +151,9 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/main.TaskResponse'
+        "401":
+          description: Invalid token
+          schema:
+            type: string
       summary: Submit a new task
 swagger: "2.0"
