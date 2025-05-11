@@ -2,11 +2,15 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"image"
 	"log"
 
 	"net/http"
 
+	"github.com/disintegration/imaging"
+	imaging "github.com/disintegration/imaging"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -64,6 +68,20 @@ func main() {
 				log.Fatalf("An Error Occured %v", err)
 			}
 
+			imgData, err := base64.StdEncoding.DecodeString(data.ImageBase64)
+			if err != nil {
+				log.Fatalf("failed to decode base64 string: %v", err)
+			}
+
+			img, _, err := image.Decode(bytes.NewReader(imgData))
+			if err != nil {
+				log.Fatalf("failed to decode image: %v", err)
+			}
+			
+			var result 
+			if data.FilterName == "blur"{
+				result := imaging.Resize(img, 300, 0, imaging.Lanczos)
+			}
 			log.Printf(" [*] consumed %s\n", string(d.Body))
 			postBody, _ := json.Marshal(map[string]string{
 				"id":     data.TaskId,
