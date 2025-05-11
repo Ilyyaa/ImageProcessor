@@ -1,12 +1,18 @@
 package main
 
 import (
+	"context"
+	"encoding/base64"
 	"encoding/json"
+	"io"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	amqp "github.com/rabbitmq/amqp091-go"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -18,21 +24,79 @@ type StatusResponse struct {
 	Status string `json:"status"`
 }
 
+type ImageFilterMessage struct {
+	TaskId      string `json:"taskId"`
+	ImageBase64 string `json:"imageBase64"`
+	FilterName  string `json:"filterName"`
+}
+
+type ImageRequest struct {
+	ImageBase64 string `json:"imageBase64" example:"/9j/4AAQSk..."`
+	FilterName  string `json:"filterName" example:"Sepia"`
+}
+
 // @Summary Submit a new task
+// @Accept multipart/form-data
 // @Produce json
 // @Param Authorization header string true "Auth token"
+// @Param image formData file true "Image file"
+// @Param filtername formData string true "Name of the filter"
 // @Success 200 {object} TaskResponse
 // @Failure 401 {string} string "Invalid token"
 // @Router /task [post]
-func CreateTaskHandler(store Storage) http.HandlerFunc {
+func CreateTaskHandler(ch *amqp.Channel, store Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		err := r.ParseMultipartForm(10 << 20)
+		failOnError(err, "Failed to parse multipart form")
+
+		file, _, err := r.FormFile("image")
+		failOnError(err, "Failed to get image file")
+		defer file.Close()
+
+		imageBytes, err := io.ReadAll(file)
+		failOnError(err, "Failed to read image file")
+
+		imageBase64 := base64.StdEncoding.EncodeToString(imageBytes)
+
+		filterName := r.FormValue("filtername")
+
 		taskID := uuid.New().String()
 		store.SetTask(taskID, Task{Status: "in_progress"})
 
-		go func() {
-			time.Sleep(3 * time.Second)                                // эмуляция работы
-			store.SetTask(taskID, Task{Status: "ready", Result: "42"}) // эмуляция результата
-		}()
+		message := ImageFilterMessage{
+			TaskId:      taskID,
+			ImageBase64: imageBase64,
+			FilterName:  filterName,
+		}
+
+		messageBytes, err := json.Marshal(message)
+		failOnError(err, "Failed to marshal message to JSON")
+
+		q, err := ch.QueueDeclare(
+			"code", // name
+			false,  // durable
+			false,  // delete when unused
+			false,  // exclusive
+			false,  // no-wait
+			nil,    // arguments
+		)
+		failOnError(err, "Failed to declare a queue")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		err = ch.PublishWithContext(
+			ctx,
+			"",     // exchange
+			q.Name, // routing key
+			false,  // mandatory
+			false,  // immediate
+			amqp.Publishing{
+				ContentType: "application/json",
+				Body:        messageBytes,
+			})
+		failOnError(err, "Failed to publish a message")
+		log.Printf(" [x] Sent %s\n", message.TaskId)
 
 		json.NewEncoder(w).Encode(TaskResponse{TaskID: taskID})
 	}
@@ -45,7 +109,7 @@ func CreateTaskHandler(store Storage) http.HandlerFunc {
 // @Success 200 {object} StatusResponse
 // @Failure 401 {string} string "Invalid token"
 // @Router /status/{taskID} [get]
-func GetStatusHandler(store Storage) http.HandlerFunc {
+func GetStatusHandler(ch *amqp.Channel, store Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		taskID := chi.URLParam(r, "taskID")
 		task, ok := store.GetTask(taskID)
@@ -65,7 +129,7 @@ func GetStatusHandler(store Storage) http.HandlerFunc {
 // @Failure 404 {string} string "not found"
 // @Failure 401 {string} string "Invalid token"
 // @Router /result/{taskID} [get]
-func GetResultHandler(store Storage) http.HandlerFunc {
+func GetResultHandler(ch *amqp.Channel, store Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		taskID := chi.URLParam(r, "taskID")
 		task, ok := store.GetTask(taskID)
@@ -170,5 +234,25 @@ func authMiddleware(store Storage) func(next http.Handler) http.Handler {
 			}
 			next.ServeHTTP(w, r)
 		})
+	}
+}
+
+type CommitRequest struct {
+	Id     string
+	Result string
+	Status string
+}
+
+func CommitHandler(store Storage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var data CommitRequest
+		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		store.SetTask(data.Id, Task{Status: data.Status, Result: data.Result})
+		log.Printf("%s %s %s", data.Id, data.Status, data.Result)
+		w.WriteHeader(http.StatusOK)
 	}
 }

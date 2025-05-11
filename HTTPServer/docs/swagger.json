@@ -2,7 +2,7 @@
     "swagger": "2.0",
     "info": {
         "description": "API for managing async computational tasks",
-        "title": "Task Service API",
+        "title": "Code proccesor",
         "contact": {},
         "version": "1.0"
     },
@@ -178,6 +178,9 @@
         },
         "/task": {
             "post": {
+                "consumes": [
+                    "multipart/form-data"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -188,6 +191,20 @@
                         "description": "Auth token",
                         "name": "Authorization",
                         "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Image file",
+                        "name": "image",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name of the filter",
+                        "name": "filtername",
+                        "in": "formData",
                         "required": true
                     }
                 ],

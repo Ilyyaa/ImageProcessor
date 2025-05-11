@@ -184,6 +184,9 @@ const docTemplate = `{
         },
         "/task": {
             "post": {
+                "consumes": [
+                    "multipart/form-data"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -194,6 +197,20 @@ const docTemplate = `{
                         "description": "Auth token",
                         "name": "Authorization",
                         "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Image file",
+                        "name": "image",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name of the filter",
+                        "name": "filtername",
+                        "in": "formData",
                         "required": true
                     }
                 ],
@@ -253,7 +270,7 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:8080",
 	BasePath:         "/",
 	Schemes:          []string{},
-	Title:            "Task Service API",
+	Title:            "Code proccesor",
 	Description:      "API for managing async computational tasks",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,

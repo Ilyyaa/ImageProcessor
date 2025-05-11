@@ -1,0 +1,32 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"       # AMQP protocol
+      - "15672:15672"     # Management UI
+    environment:                     # ← исправлено: было "enviroment"
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]  # ← исправлено: было с опечаткой
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  publisher:
+    build:
+      context: HTTPServer/
+      dockerfile: Dockerfile          # ← исправлено: было просто "." — это путь к файлу
+    ports:
+      - "8080:8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  consumer:
+    build:
+      context: imageProcessor/
+      dockerfile: Dockerfile          # ← исправлено: было просто "." — это путь к файлу
+    depends_on:
+      rabbitmq:
+        condition: service_healthy

@@ -23,7 +23,7 @@ host: localhost:8080
 info:
   contact: {}
   description: API for managing async computational tasks
-  title: Task Service API
+  title: Code proccesor
   version: "1.0"
 paths:
   /login:
@@ -138,10 +138,22 @@ paths:
       summary: Get task status
   /task:
     post:
+      consumes:
+      - multipart/form-data
       parameters:
       - description: Auth token
         in: header
         name: Authorization
+        required: true
+        type: string
+      - description: Image file
+        in: formData
+        name: image
+        required: true
+        type: file
+      - description: Name of the filter
+        in: formData
+        name: filtername
         required: true
         type: string
       produces:
