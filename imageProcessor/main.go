@@ -5,11 +5,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"image"
+	"image/png"
 	"log"
+	"strings"
 
 	"net/http"
 
-	"github.com/disintegration/imaging"
 	imaging "github.com/disintegration/imaging"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -68,6 +69,11 @@ func main() {
 				log.Fatalf("An Error Occured %v", err)
 			}
 
+			commaIndex := strings.Index(data.ImageBase64, ",")
+			if commaIndex != -1 {
+				data.ImageBase64 = data.ImageBase64[commaIndex+1:]
+			}
+
 			imgData, err := base64.StdEncoding.DecodeString(data.ImageBase64)
 			if err != nil {
 				log.Fatalf("failed to decode base64 string: %v", err)
@@ -77,22 +83,29 @@ func main() {
 			if err != nil {
 				log.Fatalf("failed to decode image: %v", err)
 			}
-			
-			var result 
-			if data.FilterName == "blur"{
-				result := imaging.Resize(img, 300, 0, imaging.Lanczos)
+
+			var result *image.NRGBA
+			if data.FilterName == "blur" {
+				result = imaging.Blur(img, 30)
 			}
+
+			var buf bytes.Buffer
+			err = png.Encode(&buf, result)
+			if err != nil {
+				log.Fatalf("Ошибка кодирования PNG: %v", err)
+			}
+			encoded := base64.StdEncoding.EncodeToString(buf.Bytes())
+
 			log.Printf(" [*] consumed %s\n", string(d.Body))
 			postBody, _ := json.Marshal(map[string]string{
 				"id":     data.TaskId,
-				"result": "code",
+				"result": encoded,
 				"status": "ready",
 			})
+
 			responseBody := bytes.NewBuffer(postBody)
-			//Leverage Go's HTTP Post function to make request
 			resp, err := http.Post("http://publisher:8080/Commit", "application/json", responseBody)
 			log.Printf(" [*] sent post request\n")
-			//Handle Error
 			if err != nil {
 				log.Fatalf("An Error Occured %v", err)
 			}

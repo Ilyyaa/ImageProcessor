@@ -103,7 +103,7 @@ const docTemplate = `{
         "/result/{taskID}": {
             "get": {
                 "produces": [
-                    "text/plain"
+                    "image/png"
                 ],
                 "summary": "Get task result",
                 "parameters": [
@@ -124,9 +124,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "result",
+                        "description": "Logo image in PNG format",
                         "schema": {
-                            "type": "string"
+                            "type": "file"
                         }
                     },
                     "401": {

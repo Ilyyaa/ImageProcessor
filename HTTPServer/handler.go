@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"image"
+	"image/png"
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -122,10 +126,10 @@ func GetStatusHandler(ch *amqp.Channel, store Storage) http.HandlerFunc {
 }
 
 // @Summary Get task result
-// @Produce plain
 // @Param taskID path string true "Task ID"
 // @Param Authorization header string true "Auth token"
-// @Success 200 {string} string "result"
+// @Produce image/png
+// @Success 200 {file} file "Logo image in PNG format"
 // @Failure 404 {string} string "not found"
 // @Failure 401 {string} string "Invalid token"
 // @Router /result/{taskID} [get]
@@ -137,6 +141,28 @@ func GetResultHandler(ch *amqp.Channel, store Storage) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
+
+		commaIndex := strings.Index(task.Result, ",")
+		if commaIndex != -1 {
+			task.Result = task.Result[commaIndex+1:]
+		}
+
+		data, err := base64.StdEncoding.DecodeString(task.Result)
+		if err != nil {
+			log.Fatalf("Ошибка декодирования base64: %v", err)
+		}
+
+		img, _, err := image.Decode(bytes.NewReader(data))
+		if err != nil {
+			log.Fatalf("Ошибка декодирования изображения: %v", err)
+		}
+
+		w.Header().Set("Content-Type", "image/png")
+		err = png.Encode(w, img)
+		if err != nil {
+			http.Error(w, "Failed to encode image", http.StatusInternalServerError)
+		}
+
 		w.Write([]byte(task.Result))
 	}
 }

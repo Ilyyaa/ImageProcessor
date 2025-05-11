@@ -96,12 +96,12 @@ paths:
         required: true
         type: string
       produces:
-      - text/plain
+      - image/png
       responses:
         "200":
-          description: result
+          description: Logo image in PNG format
           schema:
-            type: string
+            type: file
         "401":
           description: Invalid token
           schema:
